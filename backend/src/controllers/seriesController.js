@@ -45,7 +45,7 @@ exports.create = async (req, res) => {
   const { values, errors } = validateSeriesInput(req.body);
   if (Object.keys(errors).length) throw ApiError.badRequest('Please fix the highlighted fields', errors);
   if (!claude.isConfigured()) {
-    throw ApiError.unavailable('AI text generation is not configured. Add ANTHROPIC_API_KEY to the backend .env file.');
+    throw ApiError.unavailable('AI text generation is not configured. Add OPENAI_API_KEY to the backend environment.');
   }
 
   const cost = env.credits.seriesGeneration;

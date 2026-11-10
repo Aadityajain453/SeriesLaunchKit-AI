@@ -30,9 +30,9 @@ const env = {
     videoGeneration: int(process.env.COST_VIDEO_GENERATION, 10),
   },
 
-  anthropic: {
-    apiKey: process.env.ANTHROPIC_API_KEY || '',
-    model: process.env.CLAUDE_MODEL || 'claude-sonnet-5-5',
+   openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
   },
 
   video: {

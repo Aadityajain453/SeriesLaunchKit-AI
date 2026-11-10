@@ -1,54 +1,55 @@
 /**
- * Anthropic Claude text-generation service.
- * All Claude calls go through here; the API key never leaves the backend.
+ * OpenAI text-generation service.
+ * (File name kept as claudeService.js so controllers don't need changes.)
+ * All AI calls go through here; the API key never leaves the backend.
  */
-const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
 const env = require('../../config/env');
 const ApiError = require('../../utils/ApiError');
 const { SERIES_FIELDS } = require('../../config/seriesFields');
 
 let client = null;
 function getClient() {
-  if (!env.anthropic.apiKey) {
-    throw ApiError.unavailable('AI text generation is not configured. Add ANTHROPIC_API_KEY to the backend .env file.');
+  if (!env.openai.apiKey) {
+    throw ApiError.unavailable('AI text generation is not configured. Add OPENAI_API_KEY to the backend environment.');
   }
-  if (!client) client = new Anthropic({ apiKey: env.anthropic.apiKey });
+  if (!client) client = new OpenAI({ apiKey: env.openai.apiKey });
   return client;
 }
 
 function isConfigured() {
-  return Boolean(env.anthropic.apiKey);
+  return Boolean(env.openai.apiKey);
 }
 
-async function complete({ system, prompt, maxTokens = 4000, temperature = 0.8 }) {
-  const anthropic = getClient();
+async function complete({ system, prompt, maxTokens = 4000, json = false }) {
+  const openai = getClient();
   let response;
   try {
-    response = await anthropic.messages.create({
-      model: env.anthropic.model,
-      max_tokens: maxTokens,
-      temperature,
-      system,
-      messages: [{ role: 'user', content: prompt }],
+    response = await openai.chat.completions.create({
+      model: env.openai.model,
+      max_completion_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: prompt },
+      ],
+      ...(json ? { response_format: { type: 'json_object' } } : {}),
     });
   } catch (err) {
     const status = err.status || 502;
-    console.error('[claude] request failed', status, err.message);
-    if (status === 401) throw ApiError.unavailable('The AI provider rejected the API key. Check ANTHROPIC_API_KEY.');
+    console.error('[openai] request failed', status, err.code, err.message);
+    if (status === 401) throw ApiError.unavailable('The AI provider rejected the API key. Check OPENAI_API_KEY.');
+    if (err.code === 'insufficient_quota') throw ApiError.unavailable('The OpenAI account has no credits left. Add billing credits and try again.');
     if (status === 429) throw new ApiError(429, 'The AI provider is rate limiting requests. Please try again in a minute.');
     throw new ApiError(502, 'The AI provider could not complete the request. Please try again.');
   }
-  const text = (response.content || [])
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-    .trim();
+  const choice = response.choices?.[0];
+  const text = (choice?.message?.content || '').trim();
   if (!text) throw new ApiError(502, 'The AI provider returned an empty response.');
   return {
     text,
     model: response.model,
-    stopReason: response.stop_reason,
-    usage: { inputTokens: response.usage?.input_tokens, outputTokens: response.usage?.output_tokens },
+    stopReason: choice.finish_reason,
+    usage: { inputTokens: response.usage?.prompt_tokens, outputTokens: response.usage?.completion_tokens },
   };
 }
 
@@ -101,7 +102,7 @@ Return ONLY JSON with exactly this shape:
 }
 Rules: exactly ${episodeCount} episodes numbered 1-${episodeCount}; each episode must end on a cliffhanger or reason to watch the next one; ${inputs.mainCharacters ? 'use the characters provided' : 'invent 2-5 memorable characters'}; episodes must fit a ${inputs.episodeDuration || '60 second'} runtime.`;
 
-  const result = await complete({ system, prompt, maxTokens: 8000 });
+  const result = await complete({ system, prompt, maxTokens: 8000, json: true });
   let data;
   try {
     data = parseJson(result.text);

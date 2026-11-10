@@ -137,7 +137,7 @@ export default function SeriesCreate() {
 
       {!meta.aiConfigured && (
         <Alert variant="warning" className="d-flex gap-2"><FiAlertTriangle className="mt-1" />
-          <div><strong>AI generation isn't configured.</strong> Add <code>ANTHROPIC_API_KEY</code> to the backend <code>.env</code> to generate series.</div>
+          <div><strong>AI generation isn't configured.</strong> Add <code>OPENAI_API_KEY</code> to the backend <code>.env</code> to generate series.</div>
         </Alert>
       )}
 
