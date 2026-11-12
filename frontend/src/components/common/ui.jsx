@@ -10,6 +10,7 @@ const STATUS_MAP = {
   failed: ['danger', 'Failed'],
   queued: ['secondary', 'Queued'],
   processing: ['warning', 'Processing'],
+  cancelled: ['dark', 'Cancelled'],
   success: ['success', 'Success'],
 };
 

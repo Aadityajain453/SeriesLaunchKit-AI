@@ -170,6 +170,39 @@ exports.get = async (req, res) => {
   res.json({ video });
 };
 
+
+exports.cancel = async (req, res) => {
+  // Verify that this video belongs to the logged-in user.
+  await findOwned(req);
+
+  // Cancel only videos that are still in progress.
+  const video = await Video.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      user: req.user._id,
+      status: { $in: ['queued', 'processing'] },
+    },
+    {
+      $set: {
+        status: 'cancelled',
+        error: 'Cancelled in SeriesLaunchKit. KIE.ai generation may continue running.',
+      },
+    },
+    { new: true }
+  );
+
+  if (!video) {
+    throw ApiError.badRequest('This video cannot be cancelled because it is no longer in progress.');
+  }
+
+  res.json({
+    message: 'Video generation cancelled in SeriesLaunchKit. Provider generation may continue, and credits have not been refunded.',
+    video,
+  });
+};
+
+
+
 /** Streams the finished file through the API so the browser downloads it with a proper filename. */
 exports.download = async (req, res) => {
   const video = await findOwned(req);

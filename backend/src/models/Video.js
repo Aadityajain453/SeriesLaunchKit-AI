@@ -13,7 +13,7 @@ const videoSchema = new mongoose.Schema(
     provider: { type: String, required: true },
     providerModel: { type: String },
     providerTaskId: { type: String, index: true },
-    status: { type: String, enum: ['queued', 'processing', 'completed', 'failed'], default: 'queued' },
+    status: { type: String, enum: ['queued', 'processing', 'completed', 'failed', 'cancelled'], default: 'queued' },
     progress: { type: Number, default: 0 },
     videoUrl: { type: String, default: '' },
     error: { type: String, default: '' },

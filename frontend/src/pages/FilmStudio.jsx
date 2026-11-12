@@ -132,6 +132,29 @@ export default function FilmStudio() {
     }
   };
 
+
+  const cancelGeneration = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to cancel video generation?\n\n' +
+      'The generation may continue running at KIE.ai, and credits will not be refunded.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const { data } = await api.post(`/videos/${active._id}/cancel`);
+
+      setActive(data.video);
+
+      toast(data.message, 'info');
+
+      await loadHistory();
+    } catch (err) {
+      toast(parseError(err).message, 'danger');
+    }
+  };
+
+
   const download = async () => {
     setDownloading(true);
     try {
@@ -262,7 +285,18 @@ export default function FilmStudio() {
                     {active.status === 'completed' && active.videoUrl ? (
                       <video src={active.videoUrl} controls autoPlay muted playsInline />
                     ) : active.status === 'failed' ? (
-                      <div className="slk-video-state text-danger"><FiAlertTriangle size={28} /><span>{active.error || 'Generation failed'}</span></div>
+                      <div className="slk-video-state text-danger">
+                        <FiAlertTriangle size={28} />
+                        <span>{active.error || 'Generation failed'}</span>
+                      </div>
+                    ) : active.status === 'cancelled' ? (
+                      <div className="slk-video-state text-warning">
+                        <FiAlertTriangle size={28} />
+                        <span>Video generation cancelled.</span>
+                        <small className="text-muted">
+                          KIE.ai generation may still be running.
+                        </small>
+                      </div>
                     ) : (
                       <div className="slk-video-state">
                         <Spinner />
@@ -272,6 +306,16 @@ export default function FilmStudio() {
                     )}
                   </div>
                   {busy && <ProgressBar animated now={Math.max(active.progress || 0, 3)} className="slk-progress mt-3" />}
+
+                  {busy && (
+                    <Button
+                      variant="outline-danger"
+                      className="mt-3"
+                      onClick={cancelGeneration}
+                    >
+                      Cancel Generation
+                    </Button>
+                  )}
                   <div className="mt-3 small">
                     <div className="fw-semibold">{active.title || 'Untitled video'}</div>
                     <div className="text-muted text-wrap">{active.prompt}</div>

@@ -64,6 +64,7 @@ router.post('/videos/enhance-prompt', aiLimiter, ah(videos.enhancePrompt));
 router.get('/videos', ah(videos.list));
 router.post('/videos', aiLimiter, ah(videos.create));
 router.get('/videos/:id', oid(), ah(videos.get));
+router.post('/videos/:id/cancel', oid(), ah(videos.cancel));
 router.get('/videos/:id/download', oid(), ah(videos.download));
 router.delete('/videos/:id', oid(), ah(videos.remove));
 
