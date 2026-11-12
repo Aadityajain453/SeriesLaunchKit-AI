@@ -56,7 +56,12 @@ function EpisodePanel({ series, episode, scriptCost, onUpdated }) {
   };
 
   const toFilm = () => navigate('/film-studio', {
-    state: { prompt: episode.videoPrompt, title: `${series.title} — Ep ${episode.number}: ${episode.title}`, projectId: series.project },
+    state: {
+      prompt: episode.videoPrompt,
+      title: `${series.title} — Ep ${episode.number}: ${episode.title}`,
+      projectId: series.project,
+      duration: series.inputs?.episodeDuration,
+    },
   });
 
   if (editing) {

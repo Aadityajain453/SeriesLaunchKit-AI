@@ -27,6 +27,7 @@ export default function FilmStudio() {
     resolution: '',
     aspectRatio: '',
     projectId: prefill.projectId || '',
+    duration: prefill.duration || '15 seconds',
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -193,6 +194,15 @@ export default function FilmStudio() {
                   <Form.Control as="textarea" rows={2} value={form.description} onChange={set('description')} isInvalid={Boolean(errors.description)} maxLength={2000}
                     placeholder="Mood, colours, what must appear on screen…" />
                   <Form.Control.Feedback type="invalid">{errors.description}</Form.Control.Feedback>
+                </Form.Group>
+
+                <Form.Group className="mb-3" controlId="fs-duration">
+                  <Form.Label>Video Duration</Form.Label>
+                  <Form.Select value={form.duration} onChange={set('duration')}>
+                    <option value="15 seconds">15 Seconds</option>
+                    <option value="30 seconds">30 Seconds</option>
+                    <option value="60 seconds">60 Seconds</option>
+                  </Form.Select>
                 </Form.Group>
 
                 <Row className="g-3 mb-3">

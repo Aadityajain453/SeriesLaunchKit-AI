@@ -88,6 +88,7 @@ exports.create = async (req, res) => {
   const title = String(req.body.title || '').trim().slice(0, 120);
   const resolution = String(req.body.resolution || caps.resolutions[0]);
   const aspectRatio = String(req.body.aspectRatio || caps.aspectRatios[0]);
+  const duration = String(req.body.duration || '15 seconds');
   const projectId = req.body.projectId || null;
 
   const errors = {};
@@ -96,6 +97,12 @@ exports.create = async (req, res) => {
   if (description.length > 2000) errors.description = 'Description must be 2000 characters or fewer';
   if (!caps.resolutions.includes(resolution)) errors.resolution = 'Choose a supported resolution';
   if (!caps.aspectRatios.includes(aspectRatio)) errors.aspectRatio = 'Choose a supported aspect ratio';
+
+  const allowedDurations = ['15 seconds', '30 seconds', '60 seconds'];
+
+  if (!allowedDurations.includes(duration)) {
+    errors.duration = 'Choose a supported video duration';
+  }
   if (Object.keys(errors).length) throw ApiError.badRequest('Please fix the highlighted fields', errors);
 
   let project = null;
@@ -115,6 +122,7 @@ exports.create = async (req, res) => {
     description,
     resolution,
     aspectRatio,
+    duration,
     provider: caps.name,
     status: 'queued',
     creditsUsed: cost,
@@ -123,7 +131,7 @@ exports.create = async (req, res) => {
   // The full prompt sent to the provider includes the optional scene description.
   const fullPrompt = description ? `${prompt}\n\n${description}`.slice(0, caps.maxPromptLength) : prompt;
   try {
-    const { taskId } = await provider.createTask({ prompt: fullPrompt, resolution, aspectRatio });
+    const { taskId } = await provider.createTask({ prompt: fullPrompt, resolution, aspectRatio,duration });
     video.providerTaskId = taskId;
     video.status = 'processing';
     video.progress = 2;

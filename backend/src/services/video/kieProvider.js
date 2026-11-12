@@ -12,11 +12,10 @@ const cfg = env.video.kie;
 
 const capabilities = {
   name: 'kie',
-  label: 'Veo 3.1 via KIE.ai',
-  resolutions: ['720p', '1080p'],
+  label: 'Grok Imagine via KIE.ai',
+  resolutions: ['480p', '720p', '1080p'],
   aspectRatios: ['16:9', '9:16'],
-  // Veo only upgrades landscape videos to 1080p
-  notes: '1080p is available for 16:9 videos only. Generation usually takes 1–3 minutes.',
+  notes: 'Grok Imagine supports text-to-video generation from 6 to 30 seconds.',
   maxPromptLength: 2000,
 };
 
@@ -46,49 +45,88 @@ async function kieFetch(path, { method = 'GET', body } = {}) {
   return json.data;
 }
 
-async function createTask({ prompt, aspectRatio }) {
-  const data = await kieFetch('/api/v1/veo/generate', {
+
+async function createTask({ prompt, aspectRatio, resolution, duration }) {
+  const durationSeconds = parseInt(duration, 10);
+
+  if (!Number.isInteger(durationSeconds) || durationSeconds < 6 || durationSeconds > 30) {
+    throw new Error('Grok Imagine supports video durations between 6 and 30 seconds per generation.');
+  }
+
+  if (resolution === '1080p' && durationSeconds > 15) {
+    throw new Error('1080p supports a maximum video duration of 15 seconds. Choose 720p for longer videos.');
+  }
+
+  const data = await kieFetch('/api/v1/jobs/createTask', {
     method: 'POST',
     body: {
-      prompt,
       model: cfg.model,
-      aspectRatio: capabilities.aspectRatios.includes(aspectRatio) ? aspectRatio : '16:9',
-      enableTranslation: true,
+      input: {
+        prompt,
+        aspect_ratio: capabilities.aspectRatios.includes(aspectRatio) ? aspectRatio : '16:9',
+        mode: 'normal',
+        duration: durationSeconds,
+        resolution: capabilities.resolutions.includes(resolution) ? resolution : '720p',
+      },
     },
   });
+
   if (!data?.taskId) throw new Error('KIE.ai did not return a task id');
+
   return { taskId: data.taskId };
 }
 
+
 /** Maps KIE status to our status. successFlag: 0 generating, 1 success, 2/3 failed. */
-async function getTask(taskId, { resolution, aspectRatio, createdAt }) {
-  const data = await kieFetch(`/api/v1/veo/record-info?taskId=${encodeURIComponent(taskId)}`);
-  const flag = Number(data?.successFlag);
 
-  if (flag === 2 || flag === 3) {
-    return { status: 'failed', error: data?.errorMessage || 'The video provider could not generate this video.' };
-  }
-  if (flag !== 1) {
-    // Rough, time-based progress estimate while the provider is generating (provider gives no percentage).
-    const elapsed = (Date.now() - new Date(createdAt).getTime()) / 1000;
-    return { status: 'processing', progress: Math.min(90, Math.round((elapsed / 120) * 90)) };
+
+async function getTask(taskId) {
+  const data = await kieFetch(
+    `/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`
+  );
+
+  if (data?.state === 'fail') {
+    return {
+      status: 'failed',
+      error: data?.failMsg || 'Grok Imagine could not generate this video.',
+    };
   }
 
-  const baseUrl = data?.response?.resultUrls?.[0];
-  if (!baseUrl) return { status: 'failed', error: 'The provider finished but returned no video file.' };
-
-  if (resolution === '1080p' && aspectRatio === '16:9') {
-    try {
-      const hd = await kieFetch(`/api/v1/veo/get-1080p-video?taskId=${encodeURIComponent(taskId)}&index=0`);
-      if (hd?.resultUrl) return { status: 'completed', progress: 100, videoUrl: hd.resultUrl };
-    } catch (err) {
-      // The 1080p upgrade is still rendering or unavailable. Wait up to 10 minutes, then fall back to 720p.
-      const elapsed = (Date.now() - new Date(createdAt).getTime()) / 1000;
-      if (elapsed < 600) return { status: 'processing', progress: 95 };
-      return { status: 'completed', progress: 100, videoUrl: baseUrl, note: '1080p upgrade unavailable; delivered in 720p.' };
-    }
+  if (data?.state !== 'success') {
+    return {
+      status: 'processing',
+      progress: Number(data?.progress) || 10,
+    };
   }
-  return { status: 'completed', progress: 100, videoUrl: baseUrl };
+
+  let result;
+
+  try {
+    result = typeof data.resultJson === 'string'
+      ? JSON.parse(data.resultJson)
+      : data.resultJson;
+  } catch {
+    return {
+      status: 'failed',
+      error: 'Could not read the video result returned by KIE.ai.',
+    };
+  }
+
+  const videoUrl = result?.resultUrls?.[0];
+
+  if (!videoUrl) {
+    return {
+      status: 'failed',
+      error: 'Grok Imagine finished but returned no video URL.',
+    };
+  }
+
+  return {
+    status: 'completed',
+    progress: 100,
+    videoUrl,
+  };
 }
+
 
 module.exports = { capabilities, isConfigured, createTask, getTask };
