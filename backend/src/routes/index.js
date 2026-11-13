@@ -57,6 +57,9 @@ router.post('/series/:id/regenerate', oid(), aiLimiter, ah(series.regenerate));
 router.get('/series/:id/pdf', oid(), ah(series.exportPdf));
 router.patch('/series/:id/episodes/:episodeId', oid(), oid('episodeId'), ah(series.updateEpisode));
 router.post('/series/:id/episodes/:episodeId/script', oid(), oid('episodeId'), aiLimiter, ah(series.generateScript));
+router.post('/series/:id/episodes/:episodeId/image-prompt', oid(), oid('episodeId'), aiLimiter, ah(series.generateImagePrompt));
+
+router.post('/series/:id/episodes/:episodeId/image', oid(), oid('episodeId'), aiLimiter, ah(series.generateEpisodeImage));
 
 // ---- Film Studio / My Videos ----
 router.get('/videos/options', videos.options);

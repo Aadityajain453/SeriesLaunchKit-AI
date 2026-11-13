@@ -222,9 +222,9 @@ export default function FilmStudio() {
                 <Form.Group className="mb-3" controlId="fs-duration">
                   <Form.Label>Video Duration</Form.Label>
                   <Form.Select value={form.duration} onChange={set('duration')}>
-                    <option value="15 seconds">15 Seconds</option>
-                    <option value="30 seconds">30 Seconds</option>
-                    <option value="60 seconds">60 Seconds</option>
+                    <option value="6 seconds">6 Seconds</option>
+                    <option value="10 seconds">10 Seconds</option>
+                    <option value="15 seconds">15 Seconds (Maximum)</option>
                   </Form.Select>
                 </Form.Group>
 

@@ -4,7 +4,17 @@ const mongoose = require('mongoose');
 const generationSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    type: { type: String, enum: ['series_bible', 'episode_script', 'prompt_enhance'], required: true },
+    type: {
+      type: String,
+      enum: [
+        'series_bible',
+        'episode_script',
+        'prompt_enhance',
+        'episode_image_prompt',
+        'episode_image',
+      ],
+      required: true,
+    },
     title: { type: String, default: '' },
     model: { type: String },
     input: { type: String, default: '' },

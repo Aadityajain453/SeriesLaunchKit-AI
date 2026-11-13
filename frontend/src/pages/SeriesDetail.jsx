@@ -18,14 +18,31 @@ function EpisodePanel({ series, episode, scriptCost, onUpdated }) {
   const [draft, setDraft] = useState(episode);
   const [saving, setSaving] = useState(false);
   const [writing, setWriting] = useState(false);
+  const [generatingImagePrompt, setGeneratingImagePrompt] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [imagePromptDraft, setImagePromptDraft] = useState(episode.imagePrompt || '');
+  const [editingImagePrompt, setEditingImagePrompt] = useState(false);
+  const [savingImagePrompt, setSavingImagePrompt] = useState(false);
+  const [videoPromptDraft, setVideoPromptDraft] = useState(episode.videoPrompt || '');
+  const [editingVideoPrompt, setEditingVideoPrompt] = useState(false);
+  const [savingVideoPrompt, setSavingVideoPrompt] = useState(false);
 
   useEffect(() => { setDraft(episode); }, [episode]);
+
+  useEffect(() => {
+    setImagePromptDraft(episode.imagePrompt || '');
+  }, [episode.imagePrompt]);
 
   const save = async () => {
     setSaving(true);
     try {
       const { data } = await api.patch(`/series/${series._id}/episodes/${episode._id}`, {
-        title: draft.title, hook: draft.hook, summary: draft.summary, videoPrompt: draft.videoPrompt, script: draft.script,
+        title: draft.title,
+        hook: draft.hook,
+        summary: draft.summary,
+        videoPrompt: draft.videoPrompt,
+        imagePrompt: draft.imagePrompt,
+        script: draft.script,
       });
       onUpdated(data.episode);
       setEditing(false);
@@ -37,6 +54,46 @@ function EpisodePanel({ series, episode, scriptCost, onUpdated }) {
     }
   };
 
+  const saveImagePrompt = async () => {
+    setSavingImagePrompt(true);
+
+    try {
+      const { data } = await api.patch(
+        `/series/${series._id}/episodes/${episode._id}`,
+        { imagePrompt: imagePromptDraft }
+      );
+
+      onUpdated(data.episode);
+      setEditingImagePrompt(false);
+      toast('Image prompt updated successfully', 'success');
+    } catch (err) {
+      toast(parseError(err).message, 'danger');
+    } finally {
+      setSavingImagePrompt(false);
+    }
+  };
+
+
+  const saveVideoPrompt = async () => {
+    setSavingVideoPrompt(true);
+
+    try {
+      const { data } = await api.patch(
+        `/series/${series._id}/episodes/${episode._id}`,
+        { videoPrompt: videoPromptDraft }
+      );
+
+      onUpdated(data.episode);
+      setEditingVideoPrompt(false);
+      toast('Video prompt updated successfully', 'success');
+    } catch (err) {
+      toast(parseError(err).message, 'danger');
+    } finally {
+      setSavingVideoPrompt(false);
+    }
+  };
+
+
   const writeScript = async () => {
     setWriting(true);
     try {
@@ -47,6 +104,43 @@ function EpisodePanel({ series, episode, scriptCost, onUpdated }) {
       toast(parseError(err).message, 'danger');
     } finally {
       setWriting(false);
+      refreshUser();
+    }
+  };
+
+  const generateImagePrompt = async () => {
+    setGeneratingImagePrompt(true);
+
+    try {
+      const { data } = await api.post(
+        `/series/${series._id}/episodes/${episode._id}/image-prompt`
+      );
+
+      onUpdated(data.episode);
+      toast('Image prompt generated successfully', 'success');
+    } catch (err) {
+      toast(parseError(err).message, 'danger');
+    } finally {
+      setGeneratingImagePrompt(false);
+      refreshUser();
+    }
+  };
+
+
+  const generateImage = async () => {
+    setGeneratingImage(true);
+
+    try {
+      const { data } = await api.post(
+        `/series/${series._id}/episodes/${episode._id}/image`
+      );
+
+      onUpdated(data.episode);
+      toast('Episode image generated successfully', 'success');
+    } catch (err) {
+      toast(parseError(err).message, 'danger');
+    } finally {
+      setGeneratingImage(false);
       refreshUser();
     }
   };
@@ -72,6 +166,17 @@ function EpisodePanel({ series, episode, scriptCost, onUpdated }) {
         <Form.Group className="mb-2"><Form.Label>Hook</Form.Label><Form.Control as="textarea" rows={2} value={draft.hook} onChange={set('hook')} maxLength={500} /></Form.Group>
         <Form.Group className="mb-2"><Form.Label>Summary</Form.Label><Form.Control as="textarea" rows={4} value={draft.summary} onChange={set('summary')} maxLength={3000} /></Form.Group>
         <Form.Group className="mb-2"><Form.Label>Video prompt</Form.Label><Form.Control as="textarea" rows={3} value={draft.videoPrompt} onChange={set('videoPrompt')} maxLength={2000} /></Form.Group>
+        <Form.Group className="mb-3">
+          <Form.Label>Image Prompt</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={5}
+            value={draft.imagePrompt || ''}
+            onChange={set('imagePrompt')}
+            maxLength={4000}
+            placeholder="Describe the image you want to generate..."
+          />
+        </Form.Group>
         <Form.Group className="mb-3"><Form.Label>Script</Form.Label><Form.Control as="textarea" rows={8} className="font-monospace small" value={draft.script || ''} onChange={set('script')} maxLength={20000} /></Form.Group>
         <div className="d-flex gap-2">
           <Button className="slk-btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner size="sm" className="me-1" /> : <FiSave className="me-1" />}Save</Button>
@@ -88,15 +193,214 @@ function EpisodePanel({ series, episode, scriptCost, onUpdated }) {
       {episode.keyBeats?.length > 0 && (
         <ul className="slk-beats">{episode.keyBeats.map((b, i) => <li key={i}>{b}</li>)}</ul>
       )}
-      {episode.videoPrompt && (
-        <div className="slk-prompt-box">
-          <div className="d-flex justify-content-between align-items-center mb-1">
-            <small className="fw-semibold text-uppercase text-muted">Video prompt</small>
-            <Button size="sm" variant="link" className="p-0 slk-link" onClick={() => copy(episode.videoPrompt)}><FiCopy className="me-1" />Copy</Button>
+      <div className="slk-prompt-box">
+        <div className="d-flex justify-content-between align-items-center mb-1">
+          <small className="fw-semibold text-uppercase text-muted">
+            Video Prompt
+          </small>
+
+          <div className="d-flex gap-3">
+            <Button
+              size="sm"
+              variant="link"
+              className="p-0 slk-link"
+              onClick={() => {
+                setVideoPromptDraft(episode.videoPrompt || '');
+                setEditingVideoPrompt(true);
+              }}
+            >
+              <FiEdit3 className="me-1" />Edit
+            </Button>
+
+            <Button
+              size="sm"
+              variant="link"
+              className="p-0 slk-link"
+              onClick={() => copy(episode.videoPrompt)}
+              disabled={!episode.videoPrompt}
+            >
+              <FiCopy className="me-1" />Copy
+            </Button>
           </div>
-          <div className="small">{episode.videoPrompt}</div>
+        </div>
+
+        {editingVideoPrompt ? (
+          <>
+            <Form.Control
+              as="textarea"
+              rows={5}
+              value={videoPromptDraft}
+              onChange={(e) => setVideoPromptDraft(e.target.value)}
+              maxLength={2000}
+              placeholder="Write your video prompt..."
+            />
+
+            <div className="d-flex gap-2 mt-2">
+              <Button
+                size="sm"
+                className="slk-btn-primary"
+                onClick={saveVideoPrompt}
+                disabled={savingVideoPrompt}
+              >
+                {savingVideoPrompt ? (
+                  <Spinner size="sm" className="me-1" />
+                ) : (
+                  <FiSave className="me-1" />
+                )}
+                Save Changes
+              </Button>
+
+              <Button
+                size="sm"
+                variant="light"
+                onClick={() => {
+                  setVideoPromptDraft(episode.videoPrompt || '');
+                  setEditingVideoPrompt(false);
+                }}
+                disabled={savingVideoPrompt}
+              >
+                <FiX className="me-1" />Cancel
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="small">
+            {episode.videoPrompt || 'No video prompt available yet.'}
+          </div>
+        )}
+      </div>
+
+
+      <div className="slk-prompt-box mt-3">
+        <div className="d-flex justify-content-between align-items-center mb-1">
+          <small className="fw-semibold text-uppercase text-muted">
+            Image Prompt
+          </small>
+
+          <div className="d-flex gap-3">
+            <Button
+              size="sm"
+              variant="link"
+              className="p-0 slk-link"
+              onClick={() => {
+                setImagePromptDraft(episode.imagePrompt || '');
+                setEditingImagePrompt(true);
+              }}
+            >
+              <FiEdit3 className="me-1" />Edit
+            </Button>
+
+            <Button
+              size="sm"
+              variant="link"
+              className="p-0 slk-link"
+              onClick={() => copy(episode.imagePrompt)}
+              disabled={!episode.imagePrompt}
+            >
+              <FiCopy className="me-1" />Copy
+            </Button>
+          </div>
+        </div>
+
+        {editingImagePrompt ? (
+          <>
+            <Form.Control
+              as="textarea"
+              rows={7}
+              value={imagePromptDraft}
+              onChange={(e) => setImagePromptDraft(e.target.value)}
+              maxLength={4000}
+              placeholder="Write your image prompt..."
+            />
+
+            <div className="d-flex gap-2 mt-2">
+              <Button
+                size="sm"
+                className="slk-btn-primary"
+                onClick={saveImagePrompt}
+                disabled={savingImagePrompt}
+              >
+                {savingImagePrompt ? <Spinner size="sm" className="me-1" /> : <FiSave className="me-1" />}
+                Save Changes
+              </Button>
+
+              <Button
+                size="sm"
+                variant="light"
+                onClick={() => {
+                  setImagePromptDraft(episode.imagePrompt || '');
+                  setEditingImagePrompt(false);
+                }}
+                disabled={savingImagePrompt}
+              >
+                <FiX className="me-1" />Cancel
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="small">
+            {episode.imagePrompt || 'No image prompt generated yet.'}
+          </div>
+        )}
+
+        <Button
+          size="sm"
+          variant="light"
+          className="slk-btn-ghost mt-2"
+          onClick={generateImagePrompt}
+          disabled={generatingImagePrompt}
+        >
+          {generatingImagePrompt ? (
+            <Spinner size="sm" className="me-1" />
+          ) : (
+            <FiRefreshCw className="me-1" />
+          )}
+          {episode.imagePrompt ? 'Regenerate Image Prompt' : 'Generate Image Prompt'}
+        </Button>
+
+        <Button
+          size="sm"
+          className="slk-btn-primary mt-2 ms-2"
+          onClick={generateImage}
+          disabled={generatingImage || !episode.imagePrompt?.trim()}
+        >
+          {generatingImage ? (
+            <Spinner size="sm" className="me-1" />
+          ) : (
+            <FiRefreshCw className="me-1" />
+          )}
+          {episode.imageUrl ? 'Regenerate Image' : 'Generate Image'}
+        </Button>
+
+      </div>
+
+
+      {episode.imageUrl && (
+        <div className="mt-3">
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <small className="fw-semibold text-uppercase text-muted">
+              Generated Image
+            </small>
+            <Button
+              size="sm"
+              variant="link"
+              className="p-0 slk-link"
+              onClick={() => window.open(episode.imageUrl, '_blank')}
+            >
+              View Full Image
+            </Button>
+          </div>
+
+          <img
+            src={episode.imageUrl}
+            alt={`Episode ${episode.number}`}
+            className="img-fluid rounded"
+            style={{ maxHeight: '400px', width: '100%', objectFit: 'contain' }}
+          />
         </div>
       )}
+
+
       {episode.script && (
         <div className="slk-script mt-3">
           <div className="d-flex justify-content-between align-items-center mb-1">

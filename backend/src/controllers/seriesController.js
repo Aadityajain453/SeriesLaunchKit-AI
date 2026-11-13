@@ -4,6 +4,7 @@ const Generation = require('../models/Generation');
 const env = require('../config/env');
 const ApiError = require('../utils/ApiError');
 const claude = require('../services/ai/claudeService');
+const imageService = require('../services/ai/imageService');
 const { streamSeriesPdf } = require('../services/pdf/seriesPdf');
 const { SERIES_FIELDS, validateSeriesInput } = require('../config/seriesFields');
 const { spendCredits, refundCredits } = require('../utils/credits');
@@ -135,6 +136,101 @@ exports.regenerate = async (req, res) => {
   }
 };
 
+
+
+exports.generateImagePrompt = async (req, res) => {
+  const series = await findOwned(req);
+  const episode = series.content?.episodes?.id(req.params.episodeId);
+
+  if (!episode) throw ApiError.notFound('Episode not found');
+  if (!claude.isConfigured()) {
+    throw ApiError.unavailable('AI text generation is not configured.');
+  }
+
+  const cost = env.credits.episodeScript;
+  await spendCredits(req.user._id, cost);
+
+  try {
+    const result = await claude.generateEpisodeImagePrompt(series, episode);
+
+    episode.imagePrompt = result.imagePrompt;
+    await series.save();
+
+    const gen = await Generation.create({
+      user: req.user._id,
+      type: 'episode_image_prompt',
+      title: `Image Prompt: ${series.title} — Ep ${episode.number}`,
+      model: result.model,
+      input: episode.summary,
+      output: result.imagePrompt,
+      status: 'success',
+      creditsUsed: cost,
+      usage: result.usage,
+      series: series._id,
+    });
+
+    await logActivity(
+      req.user._id,
+      'ai_generation',
+      `AI generated the image prompt for "${series.title}" episode ${episode.number}`,
+      { model: 'Generation', id: gen._id }
+    );
+
+    res.json({ message: 'Image prompt generated', episode });
+  } catch (err) {
+    await refundCredits(req.user._id, cost);
+    throw err;
+  }
+};
+
+
+/** Generates an image for an episode and saves its URL. */
+exports.generateEpisodeImage = async (req, res) => {
+  const series = await findOwned(req);
+  const episode = series.content?.episodes?.id(req.params.episodeId);
+
+  if (!episode) throw ApiError.notFound('Episode not found');
+
+  if (!episode.imagePrompt?.trim()) {
+    throw ApiError.badRequest('Please generate or write an image prompt first.');
+  }
+
+  const result = await imageService.generateAndSaveImage(episode.imagePrompt);
+
+  try {
+    episode.imageUrl = result.imageUrl;
+    await series.save();
+
+    const gen = await Generation.create({
+      user: req.user._id,
+      type: 'episode_image',
+      title: `Episode Image: ${series.title} — Ep ${episode.number}`,
+      model: result.model,
+      input: episode.imagePrompt,
+      output: result.imageUrl,
+      status: 'success',
+      creditsUsed: 0,
+      series: series._id,
+    });
+
+    await logActivity(
+      req.user._id,
+      'ai_generation',
+      `Generated an image for "${series.title}" episode ${episode.number}`,
+      { model: 'Generation', id: gen._id }
+    );
+
+    res.json({
+      message: 'Episode image generated successfully',
+      episode,
+    });
+  } catch (err) {
+    await imageService.deleteGeneratedImage(result.filename);
+    throw err;
+  }
+};
+
+
 exports.generateScript = async (req, res) => {
   const series = await findOwned(req);
   const episode = series.content?.episodes?.id(req.params.episodeId);
@@ -169,7 +265,14 @@ exports.updateEpisode = async (req, res) => {
   const series = await findOwned(req);
   const episode = series.content?.episodes?.id(req.params.episodeId);
   if (!episode) throw ApiError.notFound('Episode not found');
-  const limits = { title: 200, hook: 500, summary: 3000, videoPrompt: 2000, script: 20000 };
+  const limits = {
+    title: 200,
+    hook: 500,
+    summary: 3000,
+    videoPrompt: 2000,
+    imagePrompt: 4000,
+    script: 20000,
+  };
   for (const [key, max] of Object.entries(limits)) {
     if (typeof req.body[key] === 'string') episode[key] = req.body[key].slice(0, max);
   }

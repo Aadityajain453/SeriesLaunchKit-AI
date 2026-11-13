@@ -16,6 +16,10 @@ const env = {
     .filter(Boolean),
 
   mongoUri: process.env.MONGO_URI,
+  storage: {
+    uploadDir: process.env.UPLOAD_DIR || path.resolve(__dirname, '../../uploads'),
+    baseUrl: process.env.STORAGE_BASE_URL || '',
+  },
 
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
@@ -30,10 +34,11 @@ const env = {
     videoGeneration: int(process.env.COST_VIDEO_GENERATION, 10),
   },
 
-   openai: {
-    apiKey: process.env.OPENAI_API_KEY || '',
-    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-  },
+  openai: {
+  apiKey: process.env.OPENAI_API_KEY || '',
+  model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+  imageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst',
+},
 
   video: {
     provider: (process.env.VIDEO_PROVIDER || '').toLowerCase(),

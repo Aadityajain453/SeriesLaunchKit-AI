@@ -13,6 +13,8 @@ const episodeSchema = new mongoose.Schema({
   keyBeats: [String],
   videoPrompt: String,
   script: { type: String, default: '' },
+  imagePrompt: { type: String, default: '' },
+  imageUrl: { type: String, default: '' },
 });
 
 const seriesSchema = new mongoose.Schema(

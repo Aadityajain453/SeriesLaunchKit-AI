@@ -15,7 +15,7 @@ const capabilities = {
   label: 'Grok Imagine via KIE.ai',
   resolutions: ['480p', '720p', '1080p'],
   aspectRatios: ['16:9', '9:16'],
-  notes: 'Grok Imagine supports text-to-video generation from 6 to 30 seconds.',
+  notes: 'Grok Imagine supports video durations of 6, 10, and 15 seconds.',
   maxPromptLength: 2000,
 };
 
@@ -49,12 +49,8 @@ async function kieFetch(path, { method = 'GET', body } = {}) {
 async function createTask({ prompt, aspectRatio, resolution, duration }) {
   const durationSeconds = parseInt(duration, 10);
 
-  if (!Number.isInteger(durationSeconds) || durationSeconds < 6 || durationSeconds > 30) {
-    throw new Error('Grok Imagine supports video durations between 6 and 30 seconds per generation.');
-  }
-
-  if (resolution === '1080p' && durationSeconds > 15) {
-    throw new Error('1080p supports a maximum video duration of 15 seconds. Choose 720p for longer videos.');
+  if (!Number.isInteger(durationSeconds) || ![6, 10, 15].includes(durationSeconds)) {
+    throw new Error('Grok Imagine supports only 6, 10, or 15 seconds per generation.');
   }
 
   const data = await kieFetch('/api/v1/jobs/createTask', {
@@ -62,6 +58,7 @@ async function createTask({ prompt, aspectRatio, resolution, duration }) {
     body: {
       model: cfg.model,
       input: {
+        image_urls: [imageUrl],
         prompt,
         aspect_ratio: capabilities.aspectRatios.includes(aspectRatio) ? aspectRatio : '16:9',
         mode: 'normal',

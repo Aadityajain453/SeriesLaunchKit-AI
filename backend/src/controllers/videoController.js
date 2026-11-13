@@ -98,10 +98,10 @@ exports.create = async (req, res) => {
   if (!caps.resolutions.includes(resolution)) errors.resolution = 'Choose a supported resolution';
   if (!caps.aspectRatios.includes(aspectRatio)) errors.aspectRatio = 'Choose a supported aspect ratio';
 
-  const allowedDurations = ['15 seconds', '30 seconds', '60 seconds'];
+  const allowedDurations = ['6 seconds', '10 seconds', '15 seconds'];
 
   if (!allowedDurations.includes(duration)) {
-    errors.duration = 'Choose a supported video duration';
+    errors.duration = 'Choose a supported video duration (6, 10, or 15 seconds)';
   }
   if (Object.keys(errors).length) throw ApiError.badRequest('Please fix the highlighted fields', errors);
 
@@ -131,7 +131,12 @@ exports.create = async (req, res) => {
   // The full prompt sent to the provider includes the optional scene description.
   const fullPrompt = description ? `${prompt}\n\n${description}`.slice(0, caps.maxPromptLength) : prompt;
   try {
-    const { taskId } = await provider.createTask({ prompt: fullPrompt, resolution, aspectRatio,duration });
+    const { taskId } = await provider.createTask({
+      prompt: fullPrompt,
+      resolution,
+      aspectRatio,
+      duration
+    });
     video.providerTaskId = taskId;
     video.status = 'processing';
     video.progress = 2;

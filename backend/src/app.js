@@ -1,3 +1,4 @@
+const fs = require('fs');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -11,7 +12,11 @@ const app = express();
 
 app.set('trust proxy', 1); // correct client IPs behind Render/Nginx/cPanel proxies for rate limiting
 app.disable('x-powered-by');
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 app.use(
   cors({
     origin(origin, cb) {
@@ -27,6 +32,16 @@ app.use(
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
 if (!env.isProd) app.use(morgan('dev'));
+// Create storage directory if it does not exist
+fs.mkdirSync(env.storage.uploadDir, { recursive: true });
+
+// Serve generated images from server storage
+app.use(
+  '/uploads',
+  express.static(env.storage.uploadDir, {
+    maxAge: '1d',
+  })
+);
 
 app.use('/api', routes);
 

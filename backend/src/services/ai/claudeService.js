@@ -95,7 +95,8 @@ Return ONLY JSON with exactly this shape:
       "hook": "the first 3 seconds that stop the scroll",
       "summary": "what happens in this episode",
       "keyBeats": ["beat 1", "beat 2", "beat 3"],
-      "videoPrompt": "a single detailed text-to-video prompt (subject, action, setting, camera, lighting, ${inputs.visualStyle || 'cinematic'} style) for the key scene of this episode"
+      "videoPrompt": "a single detailed text-to-video prompt (subject, action, setting, camera, lighting, ${inputs.visualStyle || 'cinematic'} style) for the key scene of this episode",
+      "imagePrompt": "A detailed cinematic image-generation prompt describing the main character, appearance, scene, environment, lighting, composition and visual style."
     }
   ],
   "marketing": { "tagline": "", "hashtags": ["#..."], "thumbnailIdeas": ["..."] }
@@ -127,6 +128,7 @@ Rules: exactly ${episodeCount} episodes numbered 1-${episodeCount}; each episode
       summary: str(e?.summary, 3000),
       keyBeats: arr(e?.keyBeats, 10).map((b) => str(b, 400)).filter(Boolean),
       videoPrompt: str(e?.videoPrompt, 2000),
+      imagePrompt: str(e?.imagePrompt, 4000),
     })),
     marketing: {
       tagline: str(data.marketing?.tagline, 300),
@@ -168,6 +170,65 @@ ON-SCREEN TEXT: ...`;
   return { script: result.text, model: result.model, usage: result.usage };
 }
 
+
+/** Generates or regenerates an image-generation prompt for one episode. */
+async function generateEpisodeImagePrompt(series, episode) {
+  const inputs = series.inputs || {};
+
+  const system =
+    'You are an expert cinematic visual designer and AI image-prompt engineer. ' +
+    'Create detailed, visually consistent image-generation prompts for episodic video content. ' +
+    'Return only the image prompt, without explanations or quotation marks.';
+
+  const prompt = `Create a detailed cinematic image-generation prompt for this episode.
+
+Series: ${series.title}
+Logline: ${series.content?.logline || ''}
+Genre: ${inputs.genre || ''}
+Tone: ${inputs.tone || ''}
+Visual Style: ${inputs.visualStyle || 'Cinematic'}
+Language: ${inputs.language || 'English'}
+
+Characters:
+${(series.content?.characters || [])
+      .map((c) => `${c.name}: ${c.description}`)
+      .join('\n') || 'Use characters appropriate to the story.'}
+
+Episode ${episode.number}: ${episode.title}
+Hook: ${episode.hook}
+Summary: ${episode.summary}
+Key Beats: ${(episode.keyBeats || []).join(' | ')}
+
+Existing Image Prompt: ${episode.imagePrompt || 'None'}
+
+Create one detailed image prompt describing:
+- Main character and consistent physical appearance
+- Character expression, pose and action
+- Scene, background and environment
+- Cinematic lighting, shadows and colors
+- Camera angle, framing and composition
+- Visual style and atmosphere
+
+The image should represent the most important visual moment of this episode.
+Maintain character consistency with the other episodes.
+Do not include text, captions, subtitles or watermarks in the image.
+Keep the prompt detailed and suitable for an AI image-generation model.`;
+
+  const result = await complete({
+    system,
+    prompt,
+    maxTokens: 700,
+  });
+
+  return {
+    imagePrompt: result.text,
+    model: result.model,
+    usage: result.usage,
+  };
+}
+
+
+
 /** Rewrites a rough idea into a detailed text-to-video prompt. */
 async function enhanceVideoPrompt(prompt, { aspectRatio, style } = {}) {
   const system =
@@ -182,4 +243,10 @@ async function enhanceVideoPrompt(prompt, { aspectRatio, style } = {}) {
   return { prompt: result.text.replace(/^"|"$/g, ''), model: result.model, usage: result.usage };
 }
 
-module.exports = { isConfigured, generateSeriesBible, generateEpisodeScript, enhanceVideoPrompt };
+module.exports = {
+  isConfigured,
+  generateSeriesBible,
+  generateEpisodeScript,
+  generateEpisodeImagePrompt,
+  enhanceVideoPrompt,
+};
