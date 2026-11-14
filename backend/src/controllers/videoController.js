@@ -90,8 +90,21 @@ exports.create = async (req, res) => {
   const aspectRatio = String(req.body.aspectRatio || caps.aspectRatios[0]);
   const duration = String(req.body.duration || '15 seconds');
   const projectId = req.body.projectId || null;
+  const imageUrl = String(req.body.imageUrl || '').trim();
 
   const errors = {};
+  if (!imageUrl) {
+    errors.imageUrl = 'Please provide an image for video generation';
+  } else {
+    try {
+      const parsedUrl = new URL(imageUrl);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        errors.imageUrl = 'Image URL must use HTTP or HTTPS';
+      }
+    } catch {
+      errors.imageUrl = 'Please provide a valid image URL';
+    }
+  }
   if (prompt.length < 10) errors.prompt = 'Describe your video in at least 10 characters';
   if (prompt.length > caps.maxPromptLength) errors.prompt = `Prompt must be ${caps.maxPromptLength} characters or fewer`;
   if (description.length > 2000) errors.description = 'Description must be 2000 characters or fewer';
@@ -123,6 +136,7 @@ exports.create = async (req, res) => {
     resolution,
     aspectRatio,
     duration,
+    imageUrl,
     provider: caps.name,
     status: 'queued',
     creditsUsed: cost,
@@ -135,6 +149,7 @@ exports.create = async (req, res) => {
       prompt: fullPrompt,
       resolution,
       aspectRatio,
+      imageUrl,
       duration
     });
     video.providerTaskId = taskId;
@@ -235,6 +250,7 @@ exports.remove = async (req, res) => {
 /** Uses Claude to turn a rough idea into a detailed video prompt. */
 exports.enhancePrompt = async (req, res) => {
   const prompt = String(req.body.prompt || '').trim();
+  const imageUrl = String(req.body.imageUrl || '').trim();
   if (prompt.length < 3) throw ApiError.badRequest('Write a short idea first', { prompt: 'Write a short idea first' });
   if (prompt.length > 2000) throw ApiError.badRequest('Idea is too long', { prompt: 'Keep it under 2000 characters' });
   if (!claude.isConfigured()) throw ApiError.unavailable('AI text generation is not configured.');

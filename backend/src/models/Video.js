@@ -9,7 +9,15 @@ const videoSchema = new mongoose.Schema(
     description: { type: String, maxlength: 2000, default: '' },
     resolution: { type: String, default: '720p' },
     aspectRatio: { type: String, default: '16:9' },
-    duration: { type: String, enum: ['15 seconds', '30 seconds', '60 seconds'], default: '15 seconds' },
+    duration: {
+      type: String,
+      enum: ['6 seconds', '10 seconds', '15 seconds'],
+      default: '15 seconds',
+    },
+    imageUrl: {
+      type: String,
+      required: true,
+    },
     provider: { type: String, required: true },
     providerModel: { type: String },
     providerTaskId: { type: String, index: true },

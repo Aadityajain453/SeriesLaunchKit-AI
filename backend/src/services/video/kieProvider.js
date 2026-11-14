@@ -46,7 +46,10 @@ async function kieFetch(path, { method = 'GET', body } = {}) {
 }
 
 
-async function createTask({ prompt, aspectRatio, resolution, duration }) {
+async function createTask({ prompt, imageUrl, aspectRatio, resolution, duration }) {
+  if (!imageUrl) {
+    throw new Error('An image is required to generate a video.');
+  }
   const durationSeconds = parseInt(duration, 10);
 
   if (!Number.isInteger(durationSeconds) || ![6, 10, 15].includes(durationSeconds)) {
@@ -62,7 +65,7 @@ async function createTask({ prompt, aspectRatio, resolution, duration }) {
         prompt,
         aspect_ratio: capabilities.aspectRatios.includes(aspectRatio) ? aspectRatio : '16:9',
         mode: 'normal',
-        duration: durationSeconds,
+        duration: String(durationSeconds),
         resolution: capabilities.resolutions.includes(resolution) ? resolution : '720p',
       },
     },

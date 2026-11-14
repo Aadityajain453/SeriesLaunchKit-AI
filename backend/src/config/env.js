@@ -35,17 +35,17 @@ const env = {
   },
 
   openai: {
-  apiKey: process.env.OPENAI_API_KEY || '',
-  model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-  imageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst',
-},
+    apiKey: process.env.OPENAI_API_KEY || '',
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    imageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst',
+  },
 
   video: {
     provider: (process.env.VIDEO_PROVIDER || '').toLowerCase(),
     kie: {
       apiKey: process.env.KIE_API_KEY || '',
       baseUrl: (process.env.KIE_BASE_URL || 'https://api.kie.ai').replace(/\/$/, ''),
-      model: process.env.KIE_VIDEO_MODEL || 'veo3_fast',
+      model: process.env.KIE_VIDEO_MODEL || 'grok-imagine/image-to-video',
     },
   },
 };

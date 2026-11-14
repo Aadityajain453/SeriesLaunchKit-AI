@@ -32,6 +32,10 @@ export default function FilmStudio() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imageUrl, setImageUrl] = useState('');
+  const [imagePreview, setImagePreview] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [active, setActive] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const pollRef = useRef(null);
@@ -84,9 +88,57 @@ export default function FilmStudio() {
     setErrors((er) => ({ ...er, [key]: undefined }));
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setErrors((prev) => ({
+        ...prev,
+        image: 'Only JPG, PNG, and WEBP images are allowed.',
+      }));
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors((prev) => ({
+        ...prev,
+        image: 'Image size must be less than 10 MB.',
+      }));
+      return;
+    }
+
+    setImageFile(file);
+    setImageUrl('');
+    setImagePreview(URL.createObjectURL(file));
+
+    setErrors((prev) => ({
+      ...prev,
+      image: '',
+    }));
+  };
+
+
+  const uploadSelectedImage = async () => {
+    if (!imageFile) {
+      throw new Error('Please select a reference image.');
+    }
+
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const { data } = await api.post('/upload/image', formData);
+
+    return data.imageUrl;
+  };
+
   const validate = () => {
     const er = {};
     if (form.prompt.trim().length < 10) er.prompt = 'Describe your video in at least 10 characters';
+    if (!imageFile && !imageUrl) {
+      er.image = 'Please select a reference image.';
+    }
     if (options && form.prompt.length > options.maxPromptLength) er.prompt = `Keep the prompt under ${options.maxPromptLength} characters`;
     if (!form.resolution) er.resolution = 'Choose a resolution';
     if (!form.aspectRatio) er.aspectRatio = 'Choose an aspect ratio';
@@ -114,20 +166,48 @@ export default function FilmStudio() {
 
   const submit = async (e) => {
     e.preventDefault();
+
     if (!validate()) return;
+
     setSubmitting(true);
+
     try {
-      const { data } = await api.post('/videos', { ...form, projectId: form.projectId || undefined });
+      let uploadedImageUrl = imageUrl;
+
+      // Step 1: Upload image if not already uploaded
+      if (!uploadedImageUrl) {
+        setUploading(true);
+        uploadedImageUrl = await uploadSelectedImage();
+        setImageUrl(uploadedImageUrl);
+      }
+
+      // Step 2: Send image URL with video generation request
+      const { data } = await api.post('/videos', {
+        ...form,
+        imageUrl: uploadedImageUrl,
+        projectId: form.projectId || undefined,
+      });
+
       setActive(data.video);
+
       toast('Generation started. This usually takes 1–3 minutes.', 'info');
+
       refreshUser();
       loadHistory();
+
     } catch (err) {
       const { message, fields } = parseError(err);
-      setErrors(fields);
-      toast(message, 'danger');
+
+      setErrors((prev) => ({
+        ...prev,
+        ...fields,
+      }));
+
+      toast(message || err.message, 'danger');
       refreshUser();
+
     } finally {
+      setUploading(false);
       setSubmitting(false);
     }
   };
@@ -195,6 +275,46 @@ export default function FilmStudio() {
                   <Form.Label>Video title <span className="text-muted small">(optional)</span></Form.Label>
                   <Form.Control value={form.title} onChange={set('title')} maxLength={120} placeholder="e.g. Episode 1 — The Locked Door" />
                 </Form.Group>
+
+
+                <Form.Group className="mb-3" controlId="fs-image">
+                  <Form.Label>
+                    Reference Image <span className="text-danger">*</span>
+                  </Form.Label>
+
+                  <Form.Control
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleImageChange}
+                    isInvalid={Boolean(errors.image)}
+                  />
+
+                  <Form.Text className="text-muted">
+                    Upload JPG, PNG or WEBP image. Maximum size 10 MB.
+                  </Form.Text>
+
+                  <Form.Control.Feedback type="invalid">
+                    {errors.image}
+                  </Form.Control.Feedback>
+
+                  {imagePreview && (
+                    <div className="mt-3">
+                      <img
+                        src={imagePreview}
+                        alt="Selected reference"
+                        style={{
+                          width: '100%',
+                          maxWidth: '250px',
+                          maxHeight: '180px',
+                          objectFit: 'cover',
+                          borderRadius: '8px',
+                        }}
+                      />
+                    </div>
+                  )}
+                </Form.Group>
+
+
 
                 <Form.Group className="mb-3" controlId="fs-prompt">
                   <div className="d-flex justify-content-between align-items-end mb-1">
@@ -264,7 +384,12 @@ export default function FilmStudio() {
                 {options.notes && <p className="small text-muted">{options.notes}</p>}
 
                 <Button type="submit" className="slk-btn-primary w-100 py-2" disabled={submitting || busy || !options.configured}>
-                  {submitting ? <><Spinner size="sm" className="me-2" />Starting…</>
+                  {submitting ? (
+                    <>
+                      <Spinner size="sm" className="me-2" />
+                      {uploading ? 'Uploading image…' : 'Starting video generation…'}
+                    </>
+                  )
                     : busy ? <><Spinner size="sm" className="me-2" />A video is rendering…</>
                       : <><FiZap className="me-1" />Generate Video · <CreditCost cost={options.cost} /></>}
                 </Button>
