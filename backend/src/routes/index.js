@@ -13,6 +13,7 @@ const generations = require('../controllers/generationController');
 const notifications = require('../controllers/notificationController');
 const content = require('../controllers/contentController');
 const uploadController = require('../controllers/uploadController');
+const account = require('../controllers/accountController');
 const upload = require('../middleware/upload');
 
 const router = express.Router();
@@ -46,6 +47,9 @@ router.get('/auth/me', requireAuth, ah(auth.me));
 
 // Everything below requires a logged-in user
 router.use(requireAuth);
+
+// ---- Account Management ----
+router.delete('/account/me', ah(account.deleteAccount));
 
 // ---- Image Upload ----
 router.post('/upload/image', upload.single('image'), ah(uploadController.uploadImage));
