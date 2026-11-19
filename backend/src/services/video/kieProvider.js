@@ -16,7 +16,7 @@ const capabilities = {
   resolutions: ['480p', '720p', '1080p'],
   aspectRatios: ['16:9', '9:16'],
   notes: 'Grok Imagine supports video durations of 6, 10, and 15 seconds.',
-  maxPromptLength: 2000,
+  maxPromptLength: 5000,
 };
 
 function isConfigured() {
