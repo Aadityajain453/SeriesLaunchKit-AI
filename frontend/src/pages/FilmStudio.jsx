@@ -37,6 +37,7 @@ export default function FilmStudio() {
   const [imagePreview, setImagePreview] = useState('');
   const [uploading, setUploading] = useState(false);
   const [active, setActive] = useState(null);
+  const [estimatedProgress, setEstimatedProgress] = useState(10);
   const [downloading, setDownloading] = useState(false);
   const pollRef = useRef(null);
 
@@ -61,6 +62,25 @@ export default function FilmStudio() {
       })
       .catch((err) => setLoadError(parseError(err).message));
   }, [loadHistory]);
+
+
+  // Simulated progress while KIE.ai processes the video.
+useEffect(() => {
+  if (!active || !['queued', 'processing'].includes(active.status)) {
+    setEstimatedProgress(active?.status === 'completed' ? 100 : 10);
+    return undefined;
+  }
+
+  setEstimatedProgress((current) => Math.max(current, active.progress || 10));
+
+  const timer = setInterval(() => {
+    setEstimatedProgress((current) =>
+      current >= 95 ? 95 : Math.min(current + 2, 95)
+    );
+  }, 3000);
+
+  return () => clearInterval(timer);
+}, [active?._id, active?.status]);
 
   // Poll the active job until it finishes.
   useEffect(() => {
@@ -425,12 +445,12 @@ export default function FilmStudio() {
                     ) : (
                       <div className="slk-video-state">
                         <Spinner />
-                        <span>Rendering your video… {active.progress || 0}%</span>
+                        <span>Rendering your video... {estimatedProgress}%</span>  
                         <small className="text-muted">You can leave this page — it will appear in My Videos.</small>
                       </div>
                     )}
                   </div>
-                  {busy && <ProgressBar animated now={Math.max(active.progress || 0, 3)} className="slk-progress mt-3" />}
+                  {busy && <ProgressBar animated now={estimatedProgress} className="slk-progress mt-3" />}
 
                   {busy && (
                     <Button
