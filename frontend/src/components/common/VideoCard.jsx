@@ -19,6 +19,20 @@ export default function VideoCard({ video, onDelete, onSelect }) {
 
   const videoTitle = video.title || video.prompt || 'Untitled video';
 
+  const elapsedMs = video.createdAt
+    ? Math.max(0, Date.now() - new Date(video.createdAt).getTime())
+    : 0;
+
+  const estimatedProgress = Math.min(
+    95,
+    Math.max(2, Math.round(2 + 93 * (1 - Math.exp(-elapsedMs / 180000))))
+  );
+
+  const displayProgress = Math.max(
+    estimatedProgress,
+    Math.min(video.progress || 0, 95)
+  );
+
   const download = async () => {
     setDownloading(true);
 
@@ -79,7 +93,7 @@ export default function VideoCard({ video, onDelete, onSelect }) {
             aria-label={`Video rendering: ${video.progress || 0}% complete`}
           >
             <Spinner size="sm" aria-hidden="true" />
-            <span>Rendering… {video.progress || 0}%</span>
+            <span>Rendering… {displayProgress}%</span>
           </div>
         )}
 
@@ -115,9 +129,9 @@ export default function VideoCard({ video, onDelete, onSelect }) {
 
         {['queued', 'processing'].includes(video.status) && (
           <ProgressBar
-            now={video.progress || 2}
+            now={displayProgress}
             className="slk-progress mt-2"
-            aria-label={`Rendering progress: ${video.progress || 2}%`}
+            aria-label={`Rendering progress: ${displayProgress}%`}
           />
         )}
 
