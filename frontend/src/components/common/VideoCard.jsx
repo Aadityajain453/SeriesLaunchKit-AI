@@ -1,4 +1,4 @@
-
+import { getEstimatedVideoProgress } from '../../utils/videoProgress';
 import { useState } from 'react';
 import { Button, ProgressBar, Spinner } from 'react-bootstrap';
 import {
@@ -19,19 +19,7 @@ export default function VideoCard({ video, onDelete, onSelect }) {
 
   const videoTitle = video.title || video.prompt || 'Untitled video';
 
-  const elapsedMs = video.createdAt
-    ? Math.max(0, Date.now() - new Date(video.createdAt).getTime())
-    : 0;
-
-  const estimatedProgress = Math.min(
-    95,
-    Math.max(2, Math.round(2 + 93 * (1 - Math.exp(-elapsedMs / 180000))))
-  );
-
-  const displayProgress = Math.max(
-    estimatedProgress,
-    Math.min(video.progress || 0, 95)
-  );
+  const displayProgress = getEstimatedVideoProgress(video);
 
   const download = async () => {
     setDownloading(true);
@@ -90,7 +78,7 @@ export default function VideoCard({ video, onDelete, onSelect }) {
           <div
             className="slk-video-state"
             role="status"
-            aria-label={`Video rendering: ${video.progress || 0}% complete`}
+            aria-label={`Video rendering: ${displayProgress}% complete`}
           >
             <Spinner size="sm" aria-hidden="true" />
             <span>Rendering… {displayProgress}%</span>

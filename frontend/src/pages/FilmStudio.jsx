@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getEstimatedVideoProgress } from '../utils/videoProgress';
 import { Link, useLocation } from 'react-router-dom';
 import { Alert, Button, Card, Col, Form, ProgressBar, Row, Spinner } from 'react-bootstrap';
 import { FiFilm, FiZap, FiDownload, FiStar, FiAlertTriangle, FiArrowRight, FiVideo } from 'react-icons/fi';
@@ -37,7 +38,6 @@ export default function FilmStudio() {
   const [imagePreview, setImagePreview] = useState('');
   const [uploading, setUploading] = useState(false);
   const [active, setActive] = useState(null);
-  const [estimatedProgress, setEstimatedProgress] = useState(10);
   const [downloading, setDownloading] = useState(false);
   const pollRef = useRef(null);
 
@@ -64,23 +64,19 @@ export default function FilmStudio() {
   }, [loadHistory]);
 
 
-  // Simulated progress while KIE.ai processes the video.
-useEffect(() => {
-  if (!active || !['queued', 'processing'].includes(active.status)) {
-    setEstimatedProgress(active?.status === 'completed' ? 100 : 10);
-    return undefined;
-  }
+  const [, setProgressTick] = useState(0);
 
-  setEstimatedProgress((current) => Math.max(current, active.progress || 10));
+  useEffect(() => {
+    if (!active || !['queued', 'processing'].includes(active.status)) {
+      return undefined;
+    }
 
-  const timer = setInterval(() => {
-    setEstimatedProgress((current) =>
-      current >= 95 ? 95 : Math.min(current + 2, 95)
-    );
-  }, 3000);
+    const timer = setInterval(() => {
+      setProgressTick((tick) => tick + 1);
+    }, 3000);
 
-  return () => clearInterval(timer);
-}, [active?._id, active?.status]);
+    return () => clearInterval(timer);
+  }, [active?._id, active?.status]);
 
   // Poll the active job until it finishes.
   useEffect(() => {
@@ -270,6 +266,7 @@ useEffect(() => {
   if (!options) return <LoadingBlock label="Loading Film Studio…" />;
 
   const busy = active && ['queued', 'processing'].includes(active.status);
+  const displayProgress = getEstimatedVideoProgress(active);
 
   return (
     <>
@@ -445,12 +442,12 @@ useEffect(() => {
                     ) : (
                       <div className="slk-video-state">
                         <Spinner />
-                        <span>Rendering your video... {estimatedProgress}%</span>  
+                        <span>Rendering your video... {displayProgress}%</span>
                         <small className="text-muted">You can leave this page — it will appear in My Videos.</small>
                       </div>
                     )}
                   </div>
-                  {busy && <ProgressBar animated now={estimatedProgress} className="slk-progress mt-3" />}
+                  {busy && <ProgressBar animated now={displayProgress} className="slk-progress mt-3" />}
 
                   {busy && (
                     <Button
